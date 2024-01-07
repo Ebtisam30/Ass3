@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en" ng-app="NarrowItDownApp">
+<head>
+    <title>Narrow Down Your Menu Choice</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+    <link rel="stylesheet" href="bootstrap.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script>
+        var NarrowItDownApp = angular.module('NarrowItDownApp', []);
+
+        NarrowItDownApp.service('MenuSearchService', ['$http', function($http) {
+            var service = this;
+
+            service.getMatchedMenuItems = function(searchTerm) {
+                return $http({
+                    method: "GET",
+                    url: "http://davids-restaurant.herokuapp.com/menu_items.json"
+                }).then(function(response) {
+                    var foundItems = [];
+                    var menuItems = response.data.menu_items;
+                    for (var i = 0; i < menuItems.length; i++) {
+                        if (menuItems[i].description.toLowerCase().includes(searchTerm.toLowerCase())) {
+                            foundItems.push(menuItems[i]);
+                        }
+                    }
+                    return foundItems;
+                });
+            };
+        }]);
+
+        NarrowItDownApp.controller('NarrowItDownController', ['MenuSearchService', function(MenuSearchService) {
+            var narrowDown = this;
+            narrowDown.searchTerm = "";
+            narrowDown.foundItems = [];
+
+            narrowDown.narrowItDown = function() {
+                if (!narrowDown.searchTerm.trim()) {
+                    narrowDown.foundItems = [];
+                    return;
+                }
+
+                MenuSearchService.getMatchedMenuItems(narrowDown.searchTerm).then(function(items) {
+                    narrowDown.foundItems = items;
+                });
+            };
+
+            narrowDown.removeItem = function(index) {
+                narrowDown.foundItems.splice(index, 1);
+            };
+        }]);
+
+        NarrowItDownApp.directive('foundItems', function() {
+            var ddo = {
+                templateUrl: 'foundItems.html',
+                scope: {
+                    foundItems: '<',
+                    onRemove: '&'
+                }
+            };
+            return ddo;
+        });
+    </script>
+</head>
+<body>
+   <div class="container" ng-controller="NarrowItDownController as narrowDown">
+    <h1>Narrow Down Your Chinese Menu Choice</h1>
+
+    <div class="form-group">
+      <input type="text" placeholder="search term" class="form-control" ng-model="narrowDown.searchTerm">
+    </div>
+    <div class="form-group narrow-button">
+      <button class="btn btn-primary" ng-click="narrowDown.narrowItDown()">Narrow It Down For Me!</button>
+    </div>
+
+    <found-items found-items="narrowDown.foundItems" on-remove="narrowDown.removeItem(index)"></found-items>
+  </div>
+
+  <!-- Template for foundItems directive -->
+  <script type="text/ng-template" id="foundItems.html">
+    <ul>
+      <li ng-repeat="item in foundItems">
+       <!-- {{ item.name }}, {{ item.short_name }}, {{ item.description }}-->
+       
+        <button class="btn btn-danger" ng-click="onRemove({index: $index})">Don't want this one!</button>
+      </li>
+
+      <li ng-if="!foundItems || foundItems.length === 0">Nothing found</li>
+    </ul>
+  </script>
+
+</body>
+</html>
